@@ -65,7 +65,7 @@ enum {
 
 #define CANVAS_WIDTH 144
 #define MENU_WIDTH 22
-#define TOPBAR_HEIGHT 15
+#define TOPBAR_HEIGHT 18
 
 #define SCREEN_W 144
 #define SCREEN_H 168
@@ -156,8 +156,6 @@ typedef struct AppData {
     uint8_t debug;
     uint8_t refresh_code;
     int page_number;
-    AppSync sync;
-    uint8_t sync_buffer[200];
 
     int32_t android_version;
     int32_t phone_battery_level;
@@ -167,9 +165,9 @@ typedef struct GPSData {
     int nb_received;
     uint8_t units;
     uint16_t time;
-    float speed;
-    float distance;
-    float avgspeed;
+    int32_t speed100;
+    int32_t distance100;
+    int32_t avgspeed100;
     int16_t altitude;
     int16_t ascent;
     int16_t ascentrate;
@@ -192,7 +190,7 @@ typedef struct LiveFriendData {
     char subtitle[20];
     int16_t xpos;
     int16_t ypos;
-    float distance;
+    int32_t distance;
     uint16_t bearing;
     int16_t lastviewed;
     TextLayer *name_layer;

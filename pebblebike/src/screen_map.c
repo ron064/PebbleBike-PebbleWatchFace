@@ -2,22 +2,22 @@
 #include "config.h"
 #include "pebblebike.h"
 #include "screen_map.h"
+#include "screens.h"
 
 // map layer
 Layer *path_layer;
 Layer *bearing_layer;
 
 #if !DEBUG
-  //#define NUM_POINTS 1600
-  #define NUM_POINTS 500
+  #define NUM_POINTS 1100
 #endif
 #if DEBUG
-  #define NUM_POINTS 200
+  #define NUM_POINTS 800
 #endif
 
 GPoint pts[NUM_POINTS];
 int cur_point = 0;
-int map_scale = MAP_SCALE_MIN * 2;
+int map_scale = MAP_SCALE_INI;
 int nb_points = 0;
 
 int32_t xposprev = 0, yposprev = 0;
@@ -60,8 +60,8 @@ void screen_map_zoom_in(int factor) {
 
 void screen_map_update_location() {
 
-    if ((xposprev - s_gpsdata.xpos)*(xposprev - s_gpsdata.xpos) + (yposprev - s_gpsdata.ypos)*(yposprev - s_gpsdata.ypos) < 3*3) {
-        // distance with previous position < 3*10 (m)
+    if ((xposprev - s_gpsdata.xpos)*(xposprev - s_gpsdata.xpos) + (yposprev - s_gpsdata.ypos)*(yposprev - s_gpsdata.ypos) < 4*4) {
+        // distance with previous position < 4*10 (m)
         /*snprintf(s_data.debug2, sizeof(s_data.debug2),
           "#11 nbpoints:%u\npos : %ld|%ld\nposprev : %ld|%ld\n",
           nb_points,
@@ -158,8 +158,8 @@ void path_layer_update_callback(Layer *me, GContext *ctx) {
     }
 
     for (int i = 0; i < ((nb_points > NUM_POINTS ? NUM_POINTS : nb_points) - 1); i++) {
-        p0 = pts[(cur_point-i) % NUM_POINTS];
-        p1 = pts[(cur_point-i-1) % NUM_POINTS];
+        p0 = pts[(NUM_POINTS+cur_point-i) % NUM_POINTS];
+        p1 = pts[(NUM_POINTS+cur_point-i-1) % NUM_POINTS];
 
         p0.x = (XINI + (p0.x * SCREEN_W / (map_scale/10))) % MAP_VSIZE_X;
         p0.y = (YINI - (p0.y * SCREEN_W / (map_scale/10))) % MAP_VSIZE_Y;
@@ -227,12 +227,7 @@ void screen_map_layer_init(Window* window) {
     for(int i = 0; i < NUM_LIVE_FRIENDS; i++) {
         s_live.friends[i].name_frame = GRect(0, 15, 100, 15);
         s_live.friends[i].name_layer = text_layer_create(s_live.friends[i].name_frame);
-        text_layer_set_text(s_live.friends[i].name_layer, s_live.friends[i].name);
-        text_layer_set_text_color(s_live.friends[i].name_layer, GColorBlack);
-        text_layer_set_background_color(s_live.friends[i].name_layer, GColorWhite);
-        text_layer_set_font(s_live.friends[i].name_layer, font_12);
-        text_layer_set_text_alignment(s_live.friends[i].name_layer, GTextAlignmentLeft);
-        layer_add_child(s_data.page_map, text_layer_get_layer(s_live.friends[i].name_layer));
+        set_layer_attr_full(s_live.friends[i].name_layer, s_live.friends[i].name, font_12, GTextAlignmentLeft, GColorBlack, GColorWhite, s_data.page_map);
     }
 
     pathFrame = GRect(0, 0, MAP_VSIZE_X, MAP_VSIZE_Y);

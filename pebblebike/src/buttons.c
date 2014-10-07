@@ -7,7 +7,6 @@
 #include "screen_map.h"
 #include "screen_live.h"
 #include "menu.h"
-#include "utils/ftoa.h"
 
 GBitmap *start_button;
 GBitmap *stop_button;
@@ -66,9 +65,8 @@ void handle_selectbutton_click(ClickRecognizerRef recognizer, void *context) {
     action_bar_layer_set_icon(action_bar, BUTTON_ID_DOWN, zoom_button);
   }
   if (s_data.page_number == PAGE_SPEED) {
-    char tmp[10];
-    ftoa(s_gpsdata.speed, tmp, 10,  1);
-    snprintf(s_data.speed, sizeof(s_data.speed), "%s", tmp);
+    // + 5: round instead of trunc
+    snprintf(s_data.speed, sizeof(s_data.speed), "%ld.%ld", s_gpsdata.speed100 / 100, (s_gpsdata.speed100 % 100 + 5) / 10);
     strncpy(s_data.unitsSpeedOrHeartRate, s_data.unitsSpeed, 8);
   }
   if (s_data.page_number == PAGE_HEARTRATE) {
@@ -90,15 +88,24 @@ void handle_bottombutton_click(ClickRecognizerRef recognizer, void *context) {
 void handle_bottombutton_longclick(ClickRecognizerRef recognizer, void *context) {
   screen_map_zoom_in(2);
 }
+void handle_backbutton_click(ClickRecognizerRef recognizer, void *context) {
+  // do nothing
+  // just prevent to leave the app
+}
+void handle_backbutton_exit(ClickRecognizerRef recognizer, void *context) {
+  window_stack_pop(true);
+}
 
 void click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_DOWN, handle_bottombutton_click);
   window_single_click_subscribe(BUTTON_ID_SELECT, handle_selectbutton_click);
   window_single_click_subscribe(BUTTON_ID_UP, handle_topbutton_click);
+  window_single_click_subscribe(BUTTON_ID_BACK, handle_backbutton_click);
 
   // long click config:
   window_long_click_subscribe(BUTTON_ID_DOWN, 1000, handle_bottombutton_longclick, NULL /* No handler on button release */);
   window_long_click_subscribe(BUTTON_ID_UP, 1000, handle_topbutton_longclick, NULL /* No handler on button release */);
+  window_multi_click_subscribe(BUTTON_ID_BACK, 2, 2, 300, true, handle_backbutton_exit);
 }
 
 void buttons_update() {

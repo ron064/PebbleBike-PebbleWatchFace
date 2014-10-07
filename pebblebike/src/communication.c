@@ -4,10 +4,22 @@
 #include "communication.h"
 #include "screen_map.h"
 #include "screen_live.h"
-#include "utils/ftoa.h"
 
 int nb_sync_error_callback = 0;
 int nb_tuple_live = 0, nb_tuple_altitude = 0, nb_tuple_state = 0;
+static AppTimer *reset_data_timer;
+
+void communication_init() {
+  app_message_register_inbox_received(communication_in_received_callback);
+  app_message_register_inbox_dropped(communication_in_dropped_callback);
+
+  app_message_open(/* size_inbound */ 124, /* size_outbound */ 256);
+}
+void communication_deinit() {
+  if (reset_data_timer) {
+    app_timer_cancel(reset_data_timer);
+  }
+}
 
 void send_cmd(uint8_t cmd) {
     Tuplet value = TupletInteger(CMD_BUTTON_PRESS, cmd);
@@ -134,13 +146,32 @@ void communication_in_dropped_callback(AppMessageResult reason, void *context) {
   #endif
 }
 
+static void reset_data_timer_callback(void *data) {
+  reset_data_timer = NULL;
+
+  s_gpsdata.speed100 = 0;
+  if (s_gpsdata.heartrate != 255) {
+    s_gpsdata.heartrate = 0;
+  }
+  s_gpsdata.ascentrate = 0;
+  strcpy(s_data.speed, "0");
+  strcpy(s_data.ascentrate, "0");
+
+  if (s_data.page_number == PAGE_SPEED || s_data.page_number == PAGE_HEARTRATE) {
+    layer_mark_dirty(s_data.page_speed);
+  }
+  if (s_data.page_number == PAGE_ALTITUDE) {
+    layer_mark_dirty(s_data.page_altitude);
+  }
+}
+
 void communication_in_received_callback(DictionaryIterator *iter, void *context) {
     Tuple *tuple = dict_read_first(iter);
 #define SIZE_OF_A_FRIEND 9
-    char tmp[10];
     //char friend[100];
     //int8_t live_max_name = -1;
-
+    uint16_t time0;
+    int16_t xpos = 0, ypos = 0;
 
     while (tuple) {
         switch (tuple->key) {
@@ -187,7 +218,7 @@ void communication_in_received_callback(DictionaryIterator *iter, void *context)
                 } else {
                     s_live.friends[i].ypos = tuple->value->data[1 + i * SIZE_OF_A_FRIEND + 2] + 256 * tuple->value->data[1 + i * SIZE_OF_A_FRIEND + 3];
                 }
-                s_live.friends[i].distance = (float) (tuple->value->data[1 + i * SIZE_OF_A_FRIEND + 4] + 256 * tuple->value->data[1 + i * SIZE_OF_A_FRIEND + 5]) * 10; // in km or miles
+                s_live.friends[i].distance = (tuple->value->data[1 + i * SIZE_OF_A_FRIEND + 4] + 256 * tuple->value->data[1 + i * SIZE_OF_A_FRIEND + 5]) * 10; // in m
                 s_live.friends[i].bearing = 360 * tuple->value->data[1 + i * SIZE_OF_A_FRIEND + 6] / 256;
                 s_live.friends[i].lastviewed = tuple->value->data[1 + i * SIZE_OF_A_FRIEND + 7] + 256 * tuple->value->data[1 + i * SIZE_OF_A_FRIEND + 8]; // in seconds
 
@@ -227,14 +258,15 @@ void communication_in_received_callback(DictionaryIterator *iter, void *context)
             s_data.refresh_code = (tuple->value->data[0] & 0b00110000) >> 4;
 
             s_gpsdata.accuracy = tuple->value->data[1];
-            s_gpsdata.distance = (float) (tuple->value->data[2] + 256 * tuple->value->data[3]) / 100; // in km or miles
+            s_gpsdata.distance100 = (tuple->value->data[2] + 256 * tuple->value->data[3]); // in 0.01km or 0.01miles
+            time0 = s_gpsdata.time;
             s_gpsdata.time = tuple->value->data[4] + 256 * tuple->value->data[5];
             if (s_gpsdata.time != 0) {
-                s_gpsdata.avgspeed = s_gpsdata.distance / (float) s_gpsdata.time * 3600; // km/h or mph
+                s_gpsdata.avgspeed100 = 3600 * s_gpsdata.distance100 / s_gpsdata.time; // 0.01km/h or 0.01mph
             } else {
-                s_gpsdata.avgspeed = 0;
+                s_gpsdata.avgspeed100 = 0;
             }
-            s_gpsdata.speed = ((float) (tuple->value->data[17] + 256 * tuple->value->data[18])) / 10;
+            s_gpsdata.speed100 = ((tuple->value->data[17] + 256 * tuple->value->data[18])) * 10;
             s_gpsdata.altitude = tuple->value->data[6] + 256 * tuple->value->data[7];
             if (tuple->value->data[9] >= 128) {
                 s_gpsdata.ascent = -1 * (tuple->value->data[8] + 256 * (tuple->value->data[9] - 128));
@@ -256,29 +288,43 @@ void communication_in_received_callback(DictionaryIterator *iter, void *context)
 
 
             if (tuple->value->data[14] >= 128) {
-                s_gpsdata.xpos = -1 * (tuple->value->data[13] + 256 * (tuple->value->data[14] - 128));
+                xpos = -1 * (tuple->value->data[13] + 256 * (tuple->value->data[14] - 128));
             } else {
-                s_gpsdata.xpos = tuple->value->data[13] + 256 * tuple->value->data[14];
+                xpos = tuple->value->data[13] + 256 * tuple->value->data[14];
             }
             if (tuple->value->data[16] >= 128) {
-                s_gpsdata.ypos = -1 * (tuple->value->data[15] + 256 * (tuple->value->data[16] - 128));
+                ypos = -1 * (tuple->value->data[15] + 256 * (tuple->value->data[16] - 128));
             } else {
-                s_gpsdata.ypos = tuple->value->data[15] + 256 * tuple->value->data[16];
+                ypos = tuple->value->data[15] + 256 * tuple->value->data[16];
             }
+
+            if ((xpos == 0 && ypos == 0) || (time0 > s_gpsdata.time)) {
+                // ignore old values (can happen if gps is stopped/restarted)
+                if (s_data.debug) {
+                    #if DEBUG
+                        APP_LOG(APP_LOG_LEVEL_DEBUG, "==> time0=%d t=%d xpos=%d ypos=%d", time0, s_gpsdata.time, xpos, ypos);      
+                        //vibes_short_pulse();
+                    #endif
+                }
+                xpos = s_gpsdata.xpos;
+                ypos = s_gpsdata.ypos;
+            }
+            s_gpsdata.xpos = xpos;
+            s_gpsdata.ypos = ypos;
+
             s_gpsdata.bearing = 360 * tuple->value->data[19] / 256;
             s_gpsdata.heartrate = tuple->value->data[20];
 
             snprintf(s_data.accuracy,   sizeof(s_data.accuracy),   "%d",   s_gpsdata.accuracy);
-            ftoa(s_gpsdata.distance, tmp, 10, 1);
-            snprintf(s_data.distance,   sizeof(s_data.distance),   "%s", tmp);
-            ftoa(s_gpsdata.avgspeed, tmp, 10, 1);
-            snprintf(s_data.avgspeed,   sizeof(s_data.avgspeed),   "%s", tmp);
+            snprintf(s_data.distance,   sizeof(s_data.distance),   "%ld.%ld", s_gpsdata.distance100 / 100, s_gpsdata.distance100 % 100 / 10);
+            // + 5: round instead of trunc
+            snprintf(s_data.avgspeed,   sizeof(s_data.avgspeed),   "%ld.%ld", (s_gpsdata.avgspeed100 + 5) / 100, ((s_gpsdata.avgspeed100 + 5) % 100) / 10);
 
             if (s_data.page_number == PAGE_HEARTRATE) {
               snprintf(s_data.speed, sizeof(s_data.speed), "%d", s_gpsdata.heartrate);
             } else {
-              ftoa(s_gpsdata.speed, tmp, 10,  1);
-              snprintf(s_data.speed,      sizeof(s_data.speed),      "%s", tmp);
+              // + 5: round instead of trunc
+              snprintf(s_data.speed, sizeof(s_data.speed), "%ld.%ld", (s_gpsdata.speed100 + 5) / 100, ((s_gpsdata.speed100 + 5) % 100) / 10);
             }
 
 
@@ -286,6 +332,14 @@ void communication_in_received_callback(DictionaryIterator *iter, void *context)
             snprintf(s_data.ascent,     sizeof(s_data.ascent),     "%d",   s_gpsdata.ascent);
             snprintf(s_data.ascentrate, sizeof(s_data.ascentrate), "%d",   s_gpsdata.ascentrate);
             snprintf(s_data.slope,      sizeof(s_data.slope),      "%d",   s_gpsdata.slope);
+
+            // reset data (instant speed...) after X if no data is received
+            if (reset_data_timer) {
+              //APP_LOG(APP_LOG_LEVEL_DEBUG, "app_timer_cancel()");
+              app_timer_cancel(reset_data_timer);
+            }
+            // s_data.refresh_code == 3 => _refresh_interval [5;+inf
+            reset_data_timer = app_timer_register(s_data.refresh_code == 3 ? 60000 : 20000, reset_data_timer_callback, NULL);
 
 #if DEBUG
             ftoa(s_gpsdata.distance, tmp, 10, 1);
