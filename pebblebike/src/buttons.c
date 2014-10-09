@@ -33,47 +33,47 @@ void handle_topbutton_click(ClickRecognizerRef recognizer, void *context) {
   }
 }
 void handle_selectbutton_click(ClickRecognizerRef recognizer, void *context) {
-  int prev_page_number = s_data.page_number;
-  s_data.page_number++;
+  uint8_t prev_page_number = s_data.page_number;
+  uint8_t next_page_number = s_data.page_number+1;
 
-  if (s_data.page_number == PAGE_HEARTRATE && s_gpsdata.heartrate == 255) {
-    s_data.page_number++;
+  if (next_page_number == PAGE_HEARTRATE && s_gpsdata.heartrate == 255) {
+    next_page_number++;
   }
-  if (s_data.page_number == PAGE_LIVE_TRACKING && s_data.live == 0) {
-    s_data.page_number++;
+  if (next_page_number == PAGE_LIVE_TRACKING && s_data.live == 0) {
+    next_page_number++;
   }
   if (!s_data.debug) {
-    if (s_data.page_number == PAGE_DEBUG1 || s_data.page_number == PAGE_DEBUG2) {
+    if (next_page_number == PAGE_DEBUG1 || next_page_number == PAGE_DEBUG2) {
       // debug option not checked on android app
-      s_data.page_number = PAGE_FIRST;
+      next_page_number = PAGE_FIRST;
     }
   }
-  if (s_data.page_number >= NUMBER_OF_PAGES) {
-    s_data.page_number = PAGE_FIRST;
+  if (next_page_number >= NUMBER_OF_PAGES) {
+    next_page_number = PAGE_FIRST;
   }
 
   if (prev_page_number == PAGE_LIVE_TRACKING) {
     buttons_update();
     action_bar_layer_set_icon(action_bar, BUTTON_ID_DOWN, menu_button);
-  } else if (s_data.page_number == PAGE_LIVE_TRACKING) {
+  } else if (next_page_number == PAGE_LIVE_TRACKING) {
     action_bar_layer_set_icon(action_bar, BUTTON_ID_UP, menu_up_button);
     action_bar_layer_set_icon(action_bar, BUTTON_ID_DOWN, menu_down_button);
   }
   if (prev_page_number == PAGE_MAP) {
     action_bar_layer_set_icon(action_bar, BUTTON_ID_DOWN, menu_button);
-  } else if (s_data.page_number == PAGE_MAP) {
+  } else if (next_page_number == PAGE_MAP) {
     action_bar_layer_set_icon(action_bar, BUTTON_ID_DOWN, zoom_button);
   }
-  if (s_data.page_number == PAGE_SPEED) {
+  if (next_page_number == PAGE_SPEED) {
     // + 5: round instead of trunc
     snprintf(s_data.speed, sizeof(s_data.speed), "%ld.%ld", s_gpsdata.speed100 / 100, (s_gpsdata.speed100 % 100 + 5) / 10);
     strncpy(s_data.unitsSpeedOrHeartRate, s_data.unitsSpeed, 8);
   }
-  if (s_data.page_number == PAGE_HEARTRATE) {
+  if (next_page_number == PAGE_HEARTRATE) {
     snprintf(s_data.speed, sizeof(s_data.speed), "%d", s_gpsdata.heartrate);
     strncpy(s_data.unitsSpeedOrHeartRate, HEART_RATE_UNIT, 8);
   }
-  update_screens();
+  update_screens(next_page_number);
 }
 
 void handle_bottombutton_click(ClickRecognizerRef recognizer, void *context) {

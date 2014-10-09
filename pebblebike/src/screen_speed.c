@@ -175,6 +175,7 @@ void screen_speed_deinit() {
   
   layer_destroy(s_data.speed_layer.layer);
   layer_destroy(s_data.page_speed);
+  s_data.page_speed=NULL;
   text_layer_destroy(s_data.mph_layer);
   text_layer_destroy(distance_layer);
   text_layer_destroy(s_data.miles_layer);

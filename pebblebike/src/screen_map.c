@@ -254,6 +254,7 @@ void screen_map_layer_init(Window* window) {
 }
 void screen_map_layer_deinit() {
   layer_destroy(s_data.page_map);
+  s_data.page_map=NULL;
   for(int i = 0; i < NUM_LIVE_FRIENDS; i++) {
     text_layer_destroy(s_live.friends[i].name_layer);
   }

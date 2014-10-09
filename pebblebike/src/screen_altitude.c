@@ -41,6 +41,7 @@ void screen_altitude_layer_init(Window* window) {
 
 void screen_altitude_layer_deinit() {
   layer_destroy(s_data.page_altitude);
+  s_data.page_altitude=NULL;
   field_layer_deinit(&s_data.altitude_layer);
   field_layer_deinit(&s_data.altitude_ascent);
   field_layer_deinit(&s_data.altitude_ascent_rate);

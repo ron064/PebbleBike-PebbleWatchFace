@@ -155,7 +155,7 @@ typedef struct AppData {
     uint8_t live;
     uint8_t debug;
     uint8_t refresh_code;
-    int page_number;
+    uint8_t page_number;
 
     int32_t android_version;
     int32_t phone_battery_level;
@@ -211,5 +211,7 @@ extern char tmp[255];
 
 void change_units(uint8_t units, bool first_time);
 void change_state(uint8_t state);
+void init_page(uint8_t page);
+void deinit_page(uint8_t page);
 
 #endif // PEBBLEBIKE_H

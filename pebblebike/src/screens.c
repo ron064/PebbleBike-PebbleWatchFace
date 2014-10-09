@@ -7,11 +7,16 @@
 ActionBarLayer *action_bar;
 static AppTimer *disconnect_timer;
 
-void update_screens() {
-  layer_set_hidden(s_data.page_speed, true);
-  layer_set_hidden(s_data.page_altitude, true);
-  layer_set_hidden(menu_layer_get_layer(s_data.page_live_tracking), true);
-  layer_set_hidden(s_data.page_map, true);
+void update_screens(uint8_t next_page) {
+  deinit_page(s_data.page_number);
+
+  s_data.page_number = next_page;
+  init_page(s_data.page_number);
+
+  //layer_set_hidden(s_data.page_speed, true);
+  //layer_set_hidden(s_data.page_altitude, true);
+  //layer_set_hidden(menu_layer_get_layer(s_data.page_live_tracking), true);
+  //layer_set_hidden(s_data.page_map, true);
 
   #if DEBUG
     layer_set_hidden(s_data.page_debug1, true);

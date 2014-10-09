@@ -157,4 +157,5 @@ void screen_live_layer_init(Window* window) {
 }
 void screen_live_layer_deinit() {
   menu_layer_destroy(s_data.page_live_tracking);
+  s_data.page_live_tracking=NULL;
 }

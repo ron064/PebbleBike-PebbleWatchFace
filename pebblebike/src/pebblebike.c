@@ -74,7 +74,28 @@ void change_state(uint8_t state) {
   
   nbchange_state++;
 }
-
+void deinit_page(uint8_t page)
+{
+  if ((page==PAGE_SPEED)||(page==PAGE_HEARTRATE))
+	  screen_speed_deinit();
+  if (page==PAGE_ALTITUDE)
+    screen_altitude_layer_deinit();
+  if (page==PAGE_LIVE_TRACKING)
+    screen_live_layer_deinit();
+  if (page==PAGE_MAP)
+    screen_map_layer_deinit();
+}
+void init_page(uint8_t page)
+{
+  if ((page==PAGE_SPEED)||(page==PAGE_HEARTRATE))
+    screen_speed_layer_init(s_data.window);
+  if (page==PAGE_ALTITUDE)
+    screen_altitude_layer_init(s_data.window);
+  if (page==PAGE_LIVE_TRACKING)
+    screen_live_layer_init(s_data.window);
+  if (page==PAGE_MAP)
+    screen_map_layer_init(s_data.window);
+}
 static void handle_tick(struct tm *tick_time, TimeUnits units_changed) {
 
   char *time_format;
@@ -98,8 +119,13 @@ void bt_callback(bool connected) {
   topbar_toggle_bluetooth_icon(connected);
 }
 
+
+
+
+
 static void init(void) {
 
+  memset(&s_data,0,sizeof(s_data));
   s_data.phone_battery_level = -1;
 
   font_12 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_CONDENSED_12));
@@ -120,9 +146,9 @@ static void init(void) {
   topbar_layer_init(s_data.window);
 
   screen_speed_layer_init(s_data.window);
-  screen_altitude_layer_init(s_data.window);
-  screen_live_layer_init(s_data.window);
-  screen_map_layer_init(s_data.window);
+  //screen_altitude_layer_init(s_data.window);
+  //screen_live_layer_init(s_data.window);
+  //screen_map_layer_init(s_data.window);
 
   #if DEBUG
     screen_debug1_layer_init(s_data.window);
@@ -154,10 +180,16 @@ static void deinit(void) {
 
   topbar_layer_deinit();
 
-  screen_speed_deinit();
-  screen_altitude_layer_deinit();
-  screen_live_layer_deinit();
-  screen_map_layer_deinit();
+  deinit_page(s_data.page_number);
+
+  /*if (s_data.page_speed == NULL)
+  	screen_speed_deinit();
+  if (s_data.page_altitude == NULL)
+    screen_altitude_layer_deinit();
+  if (s_data.page_live_tracking == NULL)
+    screen_live_layer_deinit();
+  if (s_data.page_map == NULL)
+    screen_map_layer_deinit();*/
 
   #if DEBUG
     screen_debug1_layer_deinit();

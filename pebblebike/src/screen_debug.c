@@ -17,6 +17,7 @@ void screen_debug1_layer_init(Window* window) {
 }
 void screen_debug1_layer_deinit() {
   layer_destroy(s_data.page_debug1);
+  s_data.page_debug1=NULL;
   text_layer_destroy(s_data.debug1_layer);
 }
 
@@ -32,6 +33,7 @@ void screen_debug2_layer_init(Window* window) {
 
 void screen_debug2_layer_deinit() {
   layer_destroy(s_data.page_debug2);
+  s_data.page_debug2=NULL;
   text_layer_destroy(s_data.debug2_layer);
 }
 
